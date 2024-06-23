@@ -32,6 +32,7 @@ pub(crate) mod PlayPoker {
         big_blind: u256,
         current_phase: GamePhase,
         players: LegacyMap<ContractAddress, Player>,
+        total_players: u256,
         current_hand: Hand,
         player_commitments: LegacyMap::<u64, (ContractAddress, u256)>, // workaround for LegacyMap
         player_revealed: LegacyMap::<u64, (ContractAddress, bool)>, // workaround for LegacyMap
@@ -79,6 +80,7 @@ pub(crate) mod PlayPoker {
         self.small_blind.write(_small_blind.into());
         self.big_blind.write(_big_blind.into());
         self.token.write(IERC20Dispatcher { contract_address: token });
+        self.total_players.write(0);
     }
 
 
@@ -102,6 +104,8 @@ pub(crate) mod PlayPoker {
                 balance: amount, address: get_caller_address(), is_playing: true, has_folded: false
             };
             self.players.write(player.address, player);
+            let total_players = self.total_players.read();
+            self.total_players.write(total_players + 1);
             self.emit(PlayerJoined { player: get_caller_address() });
         }
 
