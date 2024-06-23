@@ -3,6 +3,7 @@ pub(crate) mod PlayPoker {
     use starknet::{
         ContractAddress, get_caller_address, get_contract_address, contract_address_const
     };
+    use starkdeck_contracts::events::game_events::game_phase::{PRE_FLOP, FLOP, TURN, RIVER, SHOWDOWN};
     use openzeppelin::access::ownable::OwnableComponent;
     use openzeppelin::upgrades::UpgradeableComponent;
     use openzeppelin::upgrades::interface::IUpgradeable;
@@ -107,6 +108,14 @@ pub(crate) mod PlayPoker {
             let total_players = self.total_players.read();
             self.total_players.write(total_players + 1);
             self.emit(PlayerJoined { player: get_caller_address() });
+        }
+
+        fn start_game(ref self: ContractState) {
+            let total_players = self.total_players.read();
+            assert!(total_players >= 2, "Minimum 2 players required to start the game");
+            self.current_phase.write(GamePhase::PRE_FLOP(PRE_FLOP {}));
+            self.emit(GameStarted {});
+            
         }
 
         fn get_player(self: @ContractState, player: ContractAddress) -> Player {
