@@ -21,7 +21,8 @@ pub(crate) mod PlayPoker {
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
     use starkdeck_contracts::events::game_events::{
         GameStarted, PlayerLeft, PlayerJoined, PlayerFolded, Shuffled, HandDealt, PlayerCommitted,
-        PlayerRevealed, BetPlaced, PotUpdated, PotDistributed, PhaseAdvanced
+        PlayerRevealed, BetPlaced, PotUpdated, PotDistributed, PhaseAdvanced, DeckCreated,
+        ShuffleDeckDictCreated
     };
     use core::poseidon::PoseidonTrait;
     use core::hash::{HashStateTrait, HashStateExTrait};
@@ -49,6 +50,7 @@ pub(crate) mod PlayPoker {
         total_players: u256,
         current_hand: Hand,
         shuffled_deck: Array<felt252>,
+        shuffled_deck_dict: Felt252Dict<felt252>,
         current_bet: u256,
         pot: u256,
         token: IERC20Dispatcher,
@@ -65,6 +67,8 @@ pub(crate) mod PlayPoker {
         PlayerLeft: PlayerLeft,
         PlayerJoined: PlayerJoined,
         PlayerFolded: PlayerFolded,
+        DeckCreated: DeckCreated,
+        ShuffleDeckDictCreated: ShuffleDeckDictCreated,
         Shuffled: Shuffled,
         HandDealt: HandDealt,
         PhaseAdvanced: PhaseAdvanced,
@@ -149,9 +153,10 @@ pub(crate) mod PlayPoker {
                 rank = 0;
             };
             self.shuffled_deck.write(deck);
+            self.emit(DeckCreated {});
         }
 
-        fn shuffle_deck(ref self: ContractState) {
+        fn create_shuffle_deck_dict(ref self: ContractState) {
             assert!(
                 self.current_phase.read() == GamePhase::PRE_FLOP(PRE_FLOP {}),
                 "Phase should be PRE_FLOP"
@@ -169,8 +174,14 @@ pub(crate) mod PlayPoker {
                 shuffled_deck_dict.insert(index.into(), temp);
                 index += 1;
             };
+            self.shuffled_deck_dict.write(shuffled_deck_dict);
+            self.emit(ShuffleDeckDictCreated {});
+        }
+
+        fn shuffle_deck(ref self: ContractState) {
+            let mut shuffled_deck_dict = self.shuffled_deck_dict.read();
             let mut shuffled_deck: Array<felt252> = array![];
-            index = 0;
+            let mut index: u32 = 0;
             while index < NUM_CARDS {
                 shuffled_deck.append(shuffled_deck_dict.get(index.into()));
             };

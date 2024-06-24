@@ -6,6 +6,7 @@ pub trait IPlayPoker<TContractState> {
     fn join_game(ref self: TContractState, amount: u256);
     fn start_game(ref self: TContractState);
     fn create_deck(ref self: TContractState);
+    fn create_shuffle_deck_dict(ref self: TContractState);
     fn shuffle_deck(ref self: TContractState);
     fn deal_hand(ref self: TContractState);
     fn get_player(self: @TContractState, player: ContractAddress) -> Player;
