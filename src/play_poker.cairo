@@ -1,5 +1,6 @@
 #[starknet::contract]
 pub(crate) mod PlayPoker {
+    use core::clone::Clone;
     use core::box::BoxTrait;
     use core::array::ArrayTrait;
     use core::serde::Serde;
@@ -25,10 +26,7 @@ pub(crate) mod PlayPoker {
     use core::poseidon::PoseidonTrait;
     use core::hash::{HashStateTrait, HashStateExTrait};
     use starkdeck_contracts::models::{GamePhase, Player, Hand, DeckCard, Block};
-    use starkdeck_contracts::impls::{
-        StoreFelt252Array, PartialOrdFelt, ListHoleCardsCopy, ListCommunityCardsCopy,
-        ArrayFelt252Copy
-    };
+    use starkdeck_contracts::impls::{StoreFelt252Array, PartialOrdFelt};
     use starkdeck_contracts::constants::{NUM_CARDS, NUM_PLAYERS, NUM_BOARD_CARDS};
     use starkdeck_contracts::interface::{IPlayPoker};
 
@@ -130,7 +128,7 @@ pub(crate) mod PlayPoker {
             self.emit(GameStarted {});
         }
 
-        fn shuffle_deck(ref self: ContractState) {
+        fn create_deck(ref self: ContractState) {
             assert!(
                 self.current_phase.read() == GamePhase::PRE_FLOP(PRE_FLOP {}),
                 "Phase should be PRE_FLOP"
@@ -150,32 +148,32 @@ pub(crate) mod PlayPoker {
                 suite += 1;
                 rank = 0;
             };
+            self.shuffled_deck.write(deck);
+        }
 
-            index = 0;
+        fn shuffle_deck(ref self: ContractState) {
+            assert!(
+                self.current_phase.read() == GamePhase::PRE_FLOP(PRE_FLOP {}),
+                "Phase should be PRE_FLOP"
+            );
+            let deck = self.shuffled_deck.read();
+            let mut index: u32 = 0;
             let mut shuffled_deck_dict: Felt252Dict<felt252> = Default::default();
-            while index
-                .try_into()
-                .unwrap() < NUM_CARDS {
-                    let block_timestamp = get_block_timestamp();
-                    let block_number = get_block_number();
-                    let block = Block { block_timestamp, block_number };
-                    let hash = PoseidonTrait::new().update_with(block).finalize();
-                    let swap_pos: u256 = hash
-                        .into() % (NUM_CARDS - index.try_into().unwrap())
-                        .into();
-                    let temp = *deck[swap_pos.try_into().unwrap()];
-                    shuffled_deck_dict.insert(index.into(), temp);
-                    index += 1;
-                };
-
+            while index < NUM_CARDS {
+                let block_timestamp = get_block_timestamp();
+                let block_number = get_block_number();
+                let block = Block { block_timestamp, block_number };
+                let hash = PoseidonTrait::new().update_with(block).finalize();
+                let swap_pos: u256 = hash.into() % (NUM_CARDS - index).into();
+                let temp = *deck[swap_pos.try_into().unwrap()];
+                shuffled_deck_dict.insert(index.into(), temp);
+                index += 1;
+            };
             let mut shuffled_deck: Array<felt252> = array![];
-
             index = 0;
-            while index
-                .try_into()
-                .unwrap() < NUM_CARDS {
-                    shuffled_deck.append(shuffled_deck_dict.get(index.into()));
-                };
+            while index < NUM_CARDS {
+                shuffled_deck.append(shuffled_deck_dict.get(index.into()));
+            };
             self.shuffled_deck.write(shuffled_deck);
             self.emit(Shuffled {});
         }
@@ -184,8 +182,8 @@ pub(crate) mod PlayPoker {
             let total_players = self.total_players.read();
             assert!(total_players >= 2, "Minimum 2 players required to start the game");
             let mut deck_index = 0;
-            let mut current_hand = self.current_hand.read();
-            let shuffled_deck = self.shuffled_deck.read();
+            let mut current_hand = @self.current_hand.read();
+            let shuffled_deck = @self.shuffled_deck.read();
             let mut i = 0;
             let mut j = 0;
             while i < 2 {
