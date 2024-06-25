@@ -1,6 +1,6 @@
 use starknet::ContractAddress;
 use starkdeck_contracts::events::game_events::game_phase::{PRE_FLOP, FLOP, TURN, RIVER, SHOWDOWN};
-use starkdeck_contracts::impls::{StoreHoleCardsArray, StoreCommunityCardsArray,};
+use starkdeck_contracts::impls::{StoreHoleCardsArray, StoreCommunityCardsArray};
 use alexandria_storage::list::{List, ListTrait};
 
 #[derive(Drop, Serde, Copy, PartialEq, starknet::Event, starknet::Store)]
