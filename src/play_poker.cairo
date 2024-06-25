@@ -1,6 +1,7 @@
 #[starknet::contract]
 pub(crate) mod PlayPoker {
-    use core::clone::Clone;
+    use core::option::OptionTrait;
+    use core::result::ResultTrait;
     use core::box::BoxTrait;
     use core::array::ArrayTrait;
     use core::serde::Serde;
@@ -21,12 +22,11 @@ pub(crate) mod PlayPoker {
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
     use starkdeck_contracts::events::game_events::{
         GameStarted, PlayerLeft, PlayerJoined, PlayerFolded, Shuffled, HandDealt, PlayerCommitted,
-        PlayerRevealed, BetPlaced, PotUpdated, PotDistributed, PhaseAdvanced, DeckCreated,
-        ShuffleDeckDictCreated
+        PlayerRevealed, BetPlaced, PotUpdated, PotDistributed, PhaseAdvanced
     };
     use core::poseidon::PoseidonTrait;
     use core::hash::{HashStateTrait, HashStateExTrait};
-    use starkdeck_contracts::models::{GamePhase, Player, Hand, DeckCard, Block};
+    use starkdeck_contracts::models::{GamePhase, Player, Hand, DeckCard, Block, HoleCards};
     use starkdeck_contracts::impls::{StoreFelt252Array, PartialOrdFelt};
     use starkdeck_contracts::constants::{NUM_CARDS, NUM_PLAYERS, NUM_BOARD_CARDS};
     use starkdeck_contracts::interface::{IPlayPoker};
@@ -50,7 +50,6 @@ pub(crate) mod PlayPoker {
         total_players: u256,
         current_hand: Hand,
         shuffled_deck: Array<felt252>,
-        shuffled_deck_dict: Felt252Dict<felt252>,
         current_bet: u256,
         pot: u256,
         token: IERC20Dispatcher,
@@ -67,8 +66,6 @@ pub(crate) mod PlayPoker {
         PlayerLeft: PlayerLeft,
         PlayerJoined: PlayerJoined,
         PlayerFolded: PlayerFolded,
-        DeckCreated: DeckCreated,
-        ShuffleDeckDictCreated: ShuffleDeckDictCreated,
         Shuffled: Shuffled,
         HandDealt: HandDealt,
         PhaseAdvanced: PhaseAdvanced,
@@ -132,7 +129,7 @@ pub(crate) mod PlayPoker {
             self.emit(GameStarted {});
         }
 
-        fn create_deck(ref self: ContractState) {
+        fn shuffle_deck(ref self: ContractState) {
             assert!(
                 self.current_phase.read() == GamePhase::PRE_FLOP(PRE_FLOP {}),
                 "Phase should be PRE_FLOP"
@@ -140,10 +137,10 @@ pub(crate) mod PlayPoker {
             let mut deck: Array<felt252> = array![];
             let mut suite: u8 = 0;
             let mut rank: u8 = 0;
-            let mut index: u8 = 0;
+            let mut index: u32 = 0;
             while suite < 4 {
                 while rank < 13 {
-                    let deck_card = DeckCard { suite, rank, index };
+                    let deck_card = DeckCard { suite, rank, index: index.try_into().unwrap() };
                     let hash = PoseidonTrait::new().update_with(deck_card).finalize();
                     deck.append(hash);
                     rank += 1;
@@ -152,17 +149,8 @@ pub(crate) mod PlayPoker {
                 suite += 1;
                 rank = 0;
             };
-            self.shuffled_deck.write(deck);
-            self.emit(DeckCreated {});
-        }
 
-        fn create_shuffle_deck_dict(ref self: ContractState) {
-            assert!(
-                self.current_phase.read() == GamePhase::PRE_FLOP(PRE_FLOP {}),
-                "Phase should be PRE_FLOP"
-            );
-            let deck = self.shuffled_deck.read();
-            let mut index: u32 = 0;
+            index = 0;
             let mut shuffled_deck_dict: Felt252Dict<felt252> = Default::default();
             while index < NUM_CARDS {
                 let block_timestamp = get_block_timestamp();
@@ -174,16 +162,13 @@ pub(crate) mod PlayPoker {
                 shuffled_deck_dict.insert(index.into(), temp);
                 index += 1;
             };
-            self.shuffled_deck_dict.write(shuffled_deck_dict);
-            self.emit(ShuffleDeckDictCreated {});
-        }
 
-        fn shuffle_deck(ref self: ContractState) {
-            let mut shuffled_deck_dict = self.shuffled_deck_dict.read();
             let mut shuffled_deck: Array<felt252> = array![];
-            let mut index: u32 = 0;
+
+            index = 0;
             while index < NUM_CARDS {
                 shuffled_deck.append(shuffled_deck_dict.get(index.into()));
+                index += 1;
             };
             self.shuffled_deck.write(shuffled_deck);
             self.emit(Shuffled {});
@@ -206,7 +191,7 @@ pub(crate) mod PlayPoker {
                             .hole_cards
                             .get(j.try_into().unwrap())
                             .unwrap()
-                            .unwrap();
+                            .unwrap_or(HoleCards { card1: 0, card2: 0 });
                         if i == 0 {
                             hole_cards
                                 .card1 =
@@ -230,7 +215,9 @@ pub(crate) mod PlayPoker {
                         };
                         deck_index += 1;
                     };
+                    j += 1;
                 };
+                i += 1;
             };
 
             self.current_phase.write(GamePhase::FLOP(FLOP {}));
