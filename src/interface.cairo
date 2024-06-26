@@ -9,6 +9,7 @@ pub trait IPlayPoker<TContractState> {
     fn deal_hand(ref self: TContractState);
     fn get_player(self: @TContractState, player: ContractAddress) -> Player;
     fn get_current_phase(self: @TContractState) -> GamePhase;
+    fn get_player_address(self: @TContractState, player_idx: felt252) -> ContractAddress;
     fn get_shuffled_deck(self: @TContractState) -> Array<felt252>;
     fn get_total_players(self: @TContractState) -> u256;
 }

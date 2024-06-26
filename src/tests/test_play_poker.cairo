@@ -1,4 +1,5 @@
 mod test {
+    use core::serde::Serde;
     use core::traits::Into;
     use starkdeck_contracts::play_poker::PlayPoker;
     use starkdeck_contracts::interface::{IPlayPokerDispatcher, IPlayPokerDispatcherTrait};
@@ -19,6 +20,14 @@ mod test {
     const CONTRACT_ADDRESS: felt252 = 6;
     const CALLER_ADDRESS: felt252 = 1;
     const OWNER_ADDRESS: felt252 = 1;
+
+    #[test]
+    #[available_gas(2_000_000_000)]
+    fn it_shows() {
+        let a: u256 = 69000000000000000000;
+        println!("a: {}", a.high);
+        println!("a: {}", a.low);
+    }
 
     #[test]
     #[available_gas(2_000_000_000)]

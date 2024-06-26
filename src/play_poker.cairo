@@ -229,6 +229,10 @@ pub(crate) mod PlayPoker {
             self.players.read(player)
         }
 
+        fn get_player_address(self: @ContractState, player_idx: felt252) -> ContractAddress {
+            self.player_addresses.read(player_idx.into())
+        }
+
         fn get_current_phase(self: @ContractState) -> GamePhase {
             self.current_phase.read()
         }
